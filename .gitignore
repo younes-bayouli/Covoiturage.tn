@@ -1,0 +1,23 @@
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Frontend
+node_modules/
+dist/
+.next/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
