@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Client } from "@stomp/stompjs";
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../context/AuthContext";
 
 export const useWebSocket = () => {
 	const token = typeof window !== "undefined"
@@ -54,6 +54,12 @@ export const useWebSocket = () => {
 			if (!stompClientRef.current?.connected) {
 				console.warn("⚠️ STOMP client not connected, cannot subscribe");
 				return null;
+			}
+
+			const previous = subscriptionsRef.current.get(destination);
+			if (previous) {
+				previous.unsubscribe();
+				subscriptionsRef.current.delete(destination);
 			}
 
 			console.log("📍 Subscribing to:", destination);

@@ -161,7 +161,7 @@ public class ActivityLogController {
             @RequestParam(defaultValue = "20") int size) {
 
         try {
-            ActivityLog.ActionType roleEnum = ActivityLog.ActionType.valueOf(role.toUpperCase());
+            Role roleEnum = Role.valueOf(role.toUpperCase());
             ActivityLog.Severity severityEnum = ActivityLog.Severity.valueOf(severity.toUpperCase());
 
             Pageable pageable = PageRequest.of(page, size);

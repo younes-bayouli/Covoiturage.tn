@@ -20,14 +20,13 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     // Field is named "actionType", not "type"
     Page<ActivityLog> findByActionType(ActivityLog.ActionType actionType, Pageable pageable);
 
-    // "severity" field doesn't exist in ActivityLog — remove or add the field to
-    // the entity
     Page<ActivityLog> findBySeverity(ActivityLog.Severity severity, Pageable pageable);
 
     Page<ActivityLog> findByTimestampBetween(LocalDateTime start, LocalDateTime end, Pageable pageable);
 
-    // Fix both types
     Page<ActivityLog> findByRoleAndActionType(Role role, ActivityLog.ActionType actionType, Pageable pageable);
+
+    Page<ActivityLog> findByRoleAndSeverity(Role role, ActivityLog.Severity severity, Pageable pageable);
 
     Page<ActivityLog> findAllByOrderByTimestampDesc(Pageable pageable);
 }

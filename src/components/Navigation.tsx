@@ -6,7 +6,7 @@ import { Car, Menu, X, User, Search, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 // @ts-ignore
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../context/AuthContext";
 
 const navLinks = [
 	{ href: "/search", label: "Trouver un trajet", icon: Search },

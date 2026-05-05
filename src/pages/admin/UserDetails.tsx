@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import useFetch from "@/hooks/useFetch";
 import { Fetch } from "@/hooks/Fetch";
-import { useAuth } from "@/src/context/authContext";
+import { useAuth } from "@/src/context/AuthContext";
 
 interface User {
 	id: number;

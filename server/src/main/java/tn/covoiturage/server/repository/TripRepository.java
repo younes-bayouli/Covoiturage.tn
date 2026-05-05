@@ -2,9 +2,13 @@ package tn.covoiturage.server.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+
+import jakarta.persistence.LockModeType;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,6 +16,10 @@ import tn.covoiturage.server.model.Trip;
 import tn.covoiturage.server.model.User;
 
 public interface TripRepository extends JpaRepository<Trip, Long> {
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT t FROM Trip t WHERE t.id = :id")
+	Optional<Trip> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT t FROM Trip t WHERE t.status = 'upcoming' ORDER BY t.departureTime ASC")
     List<Trip> findUpcomingTrips(Pageable pageable);

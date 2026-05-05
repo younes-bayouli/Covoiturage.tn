@@ -16,7 +16,7 @@ import {
 	Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../context/AuthContext";
 // @ts-ignore
 import useFetch from "@/hooks/useFetch";
 
@@ -43,26 +43,31 @@ const FAKE_UPCOMING_TRIPS = [
 	},
 ];
 
+/** Same shape as GET /reservations (ApiResponse.data items) for filters + preview cards */
 const FAKE_UPCOMING_RESERVATIONS = [
 	{
 		id: 1,
-		tripId: 101,
-		departure: "Tunis",
-		arrival: "Sousse",
-		departureTime: "2026-04-25T08:00:00",
-		driver: "Ahmed Ben Ali",
+		status: "confirmed",
 		price: 25,
-		status: "upcoming",
+		trip: {
+			id: 101,
+			depart: "Tunis",
+			arrivee: "Sousse",
+			departureTime: "2026-12-25T08:00:00",
+			owner: { prenom: "Ahmed", nom: "Ben Ali" },
+		},
 	},
 	{
 		id: 3,
-		tripId: 103,
-		departure: "Kasserine",
-		arrival: "Tunis",
-		departureTime: "2026-04-24T10:00:00",
-		driver: "Mohamed Trabelsi",
+		status: "confirmed",
 		price: 40,
-		status: "upcoming",
+		trip: {
+			id: 103,
+			depart: "Kasserine",
+			arrivee: "Tunis",
+			departureTime: "2026-12-24T10:00:00",
+			owner: { prenom: "Mohamed", nom: "Trabelsi" },
+		},
 	},
 ];
 
@@ -86,7 +91,7 @@ export function ProfilePage() {
 		},
 	);
 	const { data: reservationsData } = useFetch(
-		"http://localhost:8080/reservations",
+		utilisateur?.id ? "http://localhost:8080/reservations" : "",
 		{},
 		{
 			cache: false,
@@ -119,7 +124,35 @@ export function ProfilePage() {
 		});
 
 	const isUpcoming = (trip: any) => {
+		if (!trip?.departureTime) return false;
 		return new Date(trip.departureTime) > new Date();
+	};
+
+	const isTripCancelled = (trip: any) => {
+		const s = (trip?.status ?? "").toString().toLowerCase();
+		return s === "cancelled" || s === "canceled";
+	};
+
+	const isUpcomingReservation = (r: any) => {
+		const trip = r.trip;
+		if (!trip?.departureTime) return false;
+		return new Date(trip.departureTime) > new Date();
+	};
+
+	const reservationPreview = (r: any) => {
+		const trip = r.trip;
+		const owner = trip?.owner;
+		const driver =
+			owner != null
+				? `${owner.prenom ?? ""} ${owner.nom ?? ""}`.trim() || "—"
+				: (r.driver as string) ?? "—";
+		return {
+			depart: trip?.depart ?? r.departure ?? "—",
+			arrivee: trip?.arrivee ?? r.arrival ?? "—",
+			departureTime: trip?.departureTime ?? r.departureTime,
+			price: r.price ?? trip?.prix ?? 0,
+			driver,
+		};
 	};
 
 	const trips = tripsData !== null ? tripsData.data : [];
@@ -127,12 +160,25 @@ export function ProfilePage() {
 
 	const upcomingTrips =
 		trips
-			?.filter((t: any) => isUpcoming(t) && t.status !== "cancelled")
+			?.filter((t: any) => isUpcoming(t) && !isTripCancelled(t))
 			.slice(0, 3) || [];
+	const confirmedReservations =
+		reservations?.filter((r: any) => r.status === "confirmed") || [];
+	const upcomingReservationsList = confirmedReservations
+		.filter(isUpcomingReservation)
+		.slice(0, 3);
+	const recentReservationsFallback = [...confirmedReservations]
+		.filter((r: any) => r.trip?.departureTime)
+		.sort(
+			(a: any, b: any) =>
+				new Date(b.trip.departureTime).getTime() -
+				new Date(a.trip.departureTime).getTime(),
+		)
+		.slice(0, 3);
 	const upcomingReservations =
-		reservations
-			?.filter((r: any) => r.status === "confirmed" && isUpcoming(r.trip))
-			.slice(0, 3) || [];
+		upcomingReservationsList.length > 0
+			? upcomingReservationsList
+			: recentReservationsFallback;
 	const unreadCount = 3;
 
 	/*messages?.reduce((sum: number, c: any) => sum + (c.unread ?? 0), 0) ??
@@ -408,7 +454,9 @@ export function ProfilePage() {
 								</div>
 							) : (
 								<div className="space-y-3">
-									{upcomingReservations.map((r: any) => (
+									{upcomingReservations.map((r: any) => {
+										const v = reservationPreview(r);
+										return (
 										<div
 											key={r.id}
 											className="bg-muted/40 px-4 py-3.5"
@@ -419,18 +467,19 @@ export function ProfilePage() {
 										>
 											<div className="flex items-center justify-between">
 												<p className="text-base font-medium text-foreground">
-													{r.departure} → {r.arrival}
+													{v.depart} → {v.arrivee}
 												</p>
 												<p className="text-base font-medium text-foreground">
-													{r.price} TND
+													{v.price} TND
 												</p>
 											</div>
 											<p className="mt-1.5 text-sm text-muted-foreground">
-												{r.driver} ·{" "}
-												{fmt(r.departureTime)}
+												{v.driver} ·{" "}
+												{fmt(v.departureTime)}
 											</p>
 										</div>
-									))}
+									);
+									})}
 									<Link to="/reservations">
 										<Button
 											variant="outline"

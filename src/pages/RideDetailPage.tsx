@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
 	MapPin,
 	Clock,
@@ -17,6 +18,7 @@ import {
 	Minus,
 	Plus,
 	Check,
+	CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,15 +31,21 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 // @ts-ignore
 import { Fetch } from "@/hooks/Fetch";
-import { set } from "date-fns";
 
 export function RideDetailPage() {
 	const { id } = useParams();
 	const navigate = useNavigate();
+	const { utilisateur } = useAuth();
 	const [selectedSeats, setSelectedSeats] = useState(1);
 	const [bookingConfirmed, setBookingConfirmed] = useState(false);
+	const [paymentSimRecorded, setPaymentSimRecorded] = useState(false);
+	const [acceptedSimulatedPayment, setAcceptedSimulatedPayment] =
+		useState(false);
 	const [ride, setRide] = useState(null);
 	const [driver, setDriver] = useState(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -89,10 +97,19 @@ export function RideDetailPage() {
 	}, [id]);
 
 	const handleBooking = async () => {
+		if (!paymentSimRecorded || !acceptedSimulatedPayment) {
+			alert(
+				"Cochez l'autorisation et enregistrez le paiement simule avant de confirmer.",
+			);
+			return;
+		}
 		try {
 			const bookingData = {
-				voyageId: id,
+				voyageId: Number(id),
 				nombrePlaces: selectedSeats,
+				simulatePayment: true,
+				paymentMethod: "CB_SIMULATION",
+				maskedCardDigits: "****4242",
 			};
 
 			const result = await Fetch(
@@ -381,7 +398,15 @@ export function RideDetailPage() {
 								</div>
 
 								{/* Book Button */}
-								<Dialog>
+								<Dialog
+									onOpenChange={(open) => {
+										if (!open) {
+											setBookingConfirmed(false);
+											setPaymentSimRecorded(false);
+											setAcceptedSimulatedPayment(false);
+										}
+									}}
+								>
 									<DialogTrigger asChild>
 										<Button className="mt-6 w-full bg-accent text-accent-foreground hover:bg-accent/90">
 											Reserver {selectedSeats} place
@@ -398,7 +423,7 @@ export function RideDetailPage() {
 											<DialogDescription>
 												{bookingConfirmed
 													? "Votre reservation a ete enregistree avec succes."
-													: `${selectedSeats} place(s) pour ${totalPrice} DT`}
+													: `${selectedSeats} place(s) pour ${totalPrice} DT — paiement simule dans l'application (aucun tiers).`}
 											</DialogDescription>
 										</DialogHeader>
 										{bookingConfirmed ? (
@@ -458,8 +483,64 @@ export function RideDetailPage() {
 														</span>
 													</div>
 												</div>
+
+												<div className="rounded-lg border border-border p-4">
+													<p className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+														<CreditCard className="h-4 w-4" />
+														Paiement ({paymentSimRecorded ? "OK" : "pas encore fait"})
+													</p>
+													<p className="mb-3 text-xs text-muted-foreground">
+														Aucun prestataire de paiement: nous enregistrons uniquement une
+														ligne de paiement simulée liée à votre compte pour la réservation.
+													</p>
+													<Label htmlFor="card-ref" className="text-muted-foreground">
+														Carte fictive (affichage)
+													</Label>
+													<Input
+														id="card-ref"
+														readOnly
+														value="···· ···· ···· 4242"
+														className="mt-1 font-mono"
+													/>
+													<div className="mt-3 flex items-start gap-2">
+														<Checkbox
+															id="pay-terms"
+															checked={acceptedSimulatedPayment}
+															onCheckedChange={(c) =>
+																setAcceptedSimulatedPayment(c === true)
+															}
+														/>
+														<Label
+															htmlFor="pay-terms"
+															className="text-sm leading-snug font-normal text-muted-foreground"
+														>
+															J'autorise l'application à enregistrer un paiement simulé de{" "}
+															<strong>{totalPrice} DT</strong> pour cette réservation (aucun
+															débit réel).
+														</Label>
+													</div>
+													{!paymentSimRecorded ? (
+														<Button
+															type="button"
+															variant="secondary"
+															className="mt-4 w-full"
+															disabled={!acceptedSimulatedPayment}
+															onClick={() =>
+																setPaymentSimRecorded(true)
+															}
+														>
+															Enregistrer le paiement (simulation)
+														</Button>
+													) : (
+														<p className="mt-4 text-xs font-medium text-emerald-700">
+															Paiement simulé enregistré — vous pouvez confirmer la réservation.
+														</p>
+													)}
+												</div>
+
 												<Button
 													className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+													disabled={!paymentSimRecorded}
 													onClick={handleBooking}
 												>
 													Confirmer la reservation
@@ -473,9 +554,21 @@ export function RideDetailPage() {
 								<Button
 									variant="outline"
 									className="mt-3 w-full"
+									disabled={
+										!driver?.id ||
+										utilisateur?.id === driver.id
+									}
+									onClick={() => {
+										if (!id || !driver?.id) return;
+										navigate(
+											`/messages?tripId=${encodeURIComponent(id)}&withUser=${encodeURIComponent(String(driver.id))}`,
+										);
+									}}
 								>
 									<MessageCircle className="mr-2 h-4 w-4" />
-									Contacter {driver.prenom}
+									{utilisateur?.id === driver.id
+										? "C'est votre trajet"
+										: `Contacter ${driver.prenom}`}
 								</Button>
 							</CardContent>
 						</Card>

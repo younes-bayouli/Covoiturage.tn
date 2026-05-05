@@ -59,10 +59,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> 
-                    auth.requestMatchers("/auth/**").permitAll()
+                    auth.requestMatchers("/error").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
                         .requestMatchers("/voyages/recherche").permitAll()
                         .requestMatchers("/voyages/upcoming").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 );

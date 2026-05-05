@@ -12,6 +12,8 @@ import tn.covoiturage.server.repository.TripRepository;
 
 import java.util.List;
 
+import tn.covoiturage.server.support.RideCancellationMoney;
+
 @Service
 public class ReservationService {
 
@@ -24,8 +26,12 @@ public class ReservationService {
     @Autowired
     private ActivityLogService activityLogService;
 
+    @Autowired
+    private PaymentService paymentService;
+
     @Transactional
-    public Reservation bookSeats(Long tripId, Integer seats, User passenger) {
+    public Reservation bookSeats(Long tripId, Integer seats, User passenger, String simulatedPaymentMethod,
+            String maskedCardDigits) {
         try {
             Trip trip = tripRepository.findById(tripId)
                     .orElseThrow(() -> new RuntimeException("Trip not found"));
@@ -64,6 +70,9 @@ public class ReservationService {
 
             Reservation savedReservation = reservationRepository.save(reservation);
 
+            paymentService.recordSimulatedBookingPayment(passenger, savedReservation, savedReservation.getPrice(),
+                    simulatedPaymentMethod, maskedCardDigits);
+
             activityLogService.logAction(
                     "RESERVATION_BOOKED",
                     "SUCCESS",
@@ -91,7 +100,7 @@ public class ReservationService {
 
     public List<Reservation> getOwnReservations(User passenger) {
         try {
-            return reservationRepository.findByPassenger(passenger);
+            return reservationRepository.findByPassengerWithTripAndOwner(passenger);
         } catch (Exception e) {
             System.err.println("Error retrieving reservations: " + e.getMessage());
             e.printStackTrace();
@@ -133,16 +142,24 @@ public class ReservationService {
             }
 
             Trip trip = res.getTrip();
+            long hoursUntil = RideCancellationMoney.hoursUntilDeparture(trip);
+            double refundFraction = RideCancellationMoney.passengerSelfCancelRefundFraction(hoursUntil);
+            double paid = res.getPrice();
+            double refundAmount = Math.round(paid * refundFraction * 100.0) / 100.0;
+            double penaltyWithheld = Math.round((paid - refundAmount) * 100.0) / 100.0;
+
             trip.setPlacesDisponibles(trip.getPlacesDisponibles() + res.getSeats());
             tripRepository.save(trip);
 
             res.setStatus("cancelled");
             reservationRepository.save(res);
 
+            paymentService.recordPassengerCancelRefund(passenger, res, refundAmount, penaltyWithheld, hoursUntil);
+
             activityLogService.logAction(
                     "RESERVATION_CANCELLED",
                     "SUCCESS",
-                    "Refunded: " + res.getPrice() + " TND",
+                    String.format("Remboursement simulé %.2f TND, pénalité %.2f TND", refundAmount, penaltyWithheld),
                     passenger,
                     ActivityLog.ActionType.DELETE);
 

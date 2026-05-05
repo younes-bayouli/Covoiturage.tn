@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Send, Search } from "lucide-react";
-import { useAuth } from "../context/authContext";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 // @ts-ignore
 import useFetch from "@/hooks/useFetch";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -47,15 +48,23 @@ const fmtDate = (dateStr: string) => {
 
 export function MessagesPage() {
 	const { utilisateur } = useAuth();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const { subscribe, sendMessage, isConnected } = useWebSocket();
 
 	const { data: conversations, refetch } = useFetch(
-		`http://localhost:8080/conversations?userId=${utilisateur?.id}`,
+		utilisateur?.id
+			? "http://localhost:8080/conversations"
+			: "",
 		{},
 		{
 			cache: false,
 			retries: 0,
 		},
+	);
+
+	const lastOpenedFromRideKey = useRef<string | null>(null);
+	const [openFromRideError, setOpenFromRideError] = useState<string | null>(
+		null,
 	);
 
 	const [search, setSearch] = useState("");
@@ -66,14 +75,106 @@ export function MessagesPage() {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const socketRef = useRef<any>(null);
 
-	// Initialize conversations
-	useEffect(() => {
-		if (conversations) {
-			setLocalConvos(conversations);
-			if (!activeId && conversations.length > 0) {
-				setActiveId(conversations[0]?.id ?? null);
-			}
+	const normalizeConversationList = (raw: unknown): any[] => {
+		if (!raw) return [];
+		if (Array.isArray(raw)) return raw;
+		if (typeof raw === "object" && raw !== null && "data" in raw) {
+			const d = (raw as { data: unknown }).data;
+			return Array.isArray(d) ? d : [];
 		}
+		return [];
+	};
+
+	// Open conversation from trajet (Contacter le conducteur)
+	useEffect(() => {
+		const tripId = searchParams.get("tripId");
+		const withUser = searchParams.get("withUser");
+		if (!tripId || !withUser || !utilisateur?.id) {
+			lastOpenedFromRideKey.current = null;
+			return;
+		}
+		const key = `${tripId}:${withUser}`;
+		if (lastOpenedFromRideKey.current === key) return;
+
+		const token = localStorage.getItem("token");
+		const tid = Number(tripId);
+		const did = Number(withUser);
+		if (!Number.isFinite(tid) || !Number.isFinite(did)) {
+			setOpenFromRideError("Lien de conversation invalide.");
+			lastOpenedFromRideKey.current = null;
+			return;
+		}
+
+		// Claim synchronously so React Strict Mode / double effect cannot fire two opens in parallel.
+		lastOpenedFromRideKey.current = key;
+
+		setOpenFromRideError(null);
+		(async () => {
+			try {
+				const res = await fetch(
+					"http://localhost:8080/conversations/open",
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							...(token
+								? { Authorization: `Bearer ${token}` }
+								: {}),
+						},
+						body: JSON.stringify({
+							tripId: tid,
+							driverId: did,
+						}),
+					},
+				);
+				const data = await res.json().catch(() => null);
+				if (!res.ok) {
+					lastOpenedFromRideKey.current = null;
+					const msg =
+						(typeof data?.message === "string" && data.message) ||
+						`Impossible d'ouvrir la conversation (${res.status}).`;
+					setOpenFromRideError(msg);
+					return;
+				}
+				const conv = data as { id?: number } | null;
+				const convId = conv?.id;
+				if (conv != null && convId != null) {
+					setLocalConvos((prev) => {
+						const rest = prev.filter((c: any) => c.id !== convId);
+						return [conv, ...rest];
+					});
+					setActiveId(convId);
+				}
+				await refetch();
+				setSearchParams({}, { replace: true });
+			} catch {
+				lastOpenedFromRideKey.current = null;
+				setOpenFromRideError("Erreur reseau. Verifiez que le serveur tourne.");
+			}
+		})();
+	}, [searchParams, utilisateur?.id, refetch, setSearchParams]);
+
+	// Initialize conversations (merge with local so a just-opened chat is not wiped if refetch lags)
+	useEffect(() => {
+		if (conversations === undefined || conversations === null) return;
+		const list = normalizeConversationList(conversations);
+		setLocalConvos((prev) => {
+			if (list.length === 0) return prev;
+			const byId = new Map<number, any>();
+			for (const c of list) {
+				if (c?.id != null) byId.set(c.id, c);
+			}
+			for (const c of prev) {
+				if (c?.id != null && !byId.has(c.id)) byId.set(c.id, c);
+			}
+			return Array.from(byId.values());
+		});
+		setActiveId((prev) => {
+			if (prev != null && list.some((c: any) => c.id === prev)) {
+				return prev;
+			}
+			return list[0]?.id ?? prev;
+		});
 	}, [conversations]);
 
 	// Connect to WebSocket and subscribe to active conversation
@@ -84,19 +185,23 @@ export function MessagesPage() {
 				(message: any) => {
 					console.log("Message received:", message);
 					setLocalConvos((prev) =>
-						prev.map((c) =>
-							c.id === activeId
-								? {
-										...c,
-										messages: [
-											...(c.messages || []),
-											message,
-										],
-										lastMessage: message.content,
-										lastMessageAt: message.sentAt,
-									}
-								: c,
-						),
+						prev.map((c) => {
+							if (c.id !== activeId) return c;
+							const existing = c.messages || [];
+							const mid = message?.id;
+							if (
+								mid != null &&
+								existing.some((m: any) => m.id === mid)
+							) {
+								return c;
+							}
+							return {
+								...c,
+								messages: [...existing, message],
+								lastMessage: message.content,
+								lastMessageAt: message.sentAt,
+							};
+						}),
 					);
 				},
 			);
@@ -132,30 +237,9 @@ export function MessagesPage() {
 			senderId: utilisateur?.id,
 		};
 
-		// Optimistic update
-		const tempMessage = {
-			id: Date.now(),
-			senderId: utilisateur?.id,
-			content: newMsg.content,
-			sentAt: new Date().toISOString(),
-		};
-
-		setLocalConvos((prev) =>
-			prev.map((c) =>
-				c.id === active.id
-					? {
-							...c,
-							messages: [...(c.messages || []), tempMessage],
-							lastMessage: newMsg.content,
-							lastMessageAt: new Date().toISOString(),
-						}
-					: c,
-			),
-		);
 		setInput("");
 
 		try {
-			// Send via WebSocket
 			sendMessage(`/app/chat/${active.id}`, newMsg);
 		} catch (error) {
 			console.error("Error sending message:", error);
@@ -196,6 +280,11 @@ export function MessagesPage() {
 							<h1 className="mb-3 text-base font-medium text-foreground">
 								Messages
 							</h1>
+							{openFromRideError && (
+								<p className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-xs text-destructive">
+									{openFromRideError}
+								</p>
+							)}
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
 								<input

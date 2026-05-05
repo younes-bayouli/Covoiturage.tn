@@ -9,7 +9,7 @@ import {
 	ClipboardList,
 	Database,
 } from "lucide-react";
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../context/AuthContext";
 
 interface SidebarProps {
 	isOpen: boolean;

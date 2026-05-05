@@ -29,7 +29,6 @@ public class ActivityLogService {
         saveLog(Actor.getNom() + " " + Actor.getPrenom(), Actor.getRole(), actionType, message);
     }
 
-    public void 
 
 
     private void saveLog(String actor, Role role, ActionType type, String message) {

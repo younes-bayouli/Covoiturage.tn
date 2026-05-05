@@ -33,12 +33,33 @@ public class ReservationController {
         try {
             Long tripId = Long.valueOf(request.get("voyageId").toString());
             Integer seats = Integer.valueOf(request.get("nombrePlaces").toString());
+            if (!Boolean.TRUE.equals(parseSimulatePaymentFlag(request.get("simulatePayment")))) {
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse(
+                                "Étape paiement obligatoire: complétez le paiement simulé puis renvoyez simulatePayment=true."));
+            }
+            String method = request.get("paymentMethod") != null ? request.get("paymentMethod").toString()
+                    : "PORTEFEUILLE_SIMULE";
+            String masked = request.get("maskedCardDigits") != null ? request.get("maskedCardDigits").toString() : "";
+
             User user = userService.getCurrentUser();
-            Reservation res = reservationService.bookSeats(tripId, seats, user);
+            Reservation res = reservationService.bookSeats(tripId, seats, user, method, masked);
             return ResponseEntity.ok(new ApiResponse("Reservation confirmed", res));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ApiResponse(e.getMessage()));
         }
+    }
+
+    private static Boolean parseSimulatePaymentFlag(Object raw) {
+        if (raw == null)
+            return null;
+        if (raw instanceof Boolean b)
+            return b;
+        if (raw instanceof String s)
+            return "true".equalsIgnoreCase(s) || "1".equals(s);
+        if (raw instanceof Number n)
+            return n.intValue() != 0;
+        return Boolean.FALSE;
     }
 
     @GetMapping
