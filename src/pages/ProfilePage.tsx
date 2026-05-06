@@ -141,6 +141,7 @@ export function ProfilePage() {
 
 	const reservationPreview = (r: any) => {
 		const trip = r.trip;
+		console.log("Previewing reservation", trip);
 		const owner = trip?.owner;
 		const driver =
 			owner != null
@@ -156,6 +157,8 @@ export function ProfilePage() {
 	};
 
 	const trips = tripsData !== null ? tripsData.data : [];
+	
+		console.log("Previewing reservation", trips);
 	const reservations = reservationsData !== null ? reservationsData.data : [];
 
 	const upcomingTrips =
@@ -408,8 +411,9 @@ export function ProfilePage() {
 													{fmt(trip.departureTime)}
 												</p>
 												<p className="text-sm text-muted-foreground">
-													{trip.reservations}/
-													{trip.seats} places
+													{trip.seats -
+														trip.placesDisponibles}
+													/{trip.seats} places
 												</p>
 											</div>
 										</div>
@@ -457,28 +461,30 @@ export function ProfilePage() {
 									{upcomingReservations.map((r: any) => {
 										const v = reservationPreview(r);
 										return (
-										<div
-											key={r.id}
-											className="bg-muted/40 px-4 py-3.5"
-											style={{
-												borderLeft: "3px solid #1D9E75",
-												borderRadius: "0 10px 10px 0",
-											}}
-										>
-											<div className="flex items-center justify-between">
-												<p className="text-base font-medium text-foreground">
-													{v.depart} → {v.arrivee}
-												</p>
-												<p className="text-base font-medium text-foreground">
-													{v.price} TND
+											<div
+												key={r.id}
+												className="bg-muted/40 px-4 py-3.5"
+												style={{
+													borderLeft:
+														"3px solid #1D9E75",
+													borderRadius:
+														"0 10px 10px 0",
+												}}
+											>
+												<div className="flex items-center justify-between">
+													<p className="text-base font-medium text-foreground">
+														{v.depart} → {v.arrivee}
+													</p>
+													<p className="text-base font-medium text-foreground">
+														{v.price} TND
+													</p>
+												</div>
+												<p className="mt-1.5 text-sm text-muted-foreground">
+													{v.driver} ·{" "}
+													{fmt(v.departureTime)}
 												</p>
 											</div>
-											<p className="mt-1.5 text-sm text-muted-foreground">
-												{v.driver} ·{" "}
-												{fmt(v.departureTime)}
-											</p>
-										</div>
-									);
+										);
 									})}
 									<Link to="/reservations">
 										<Button

@@ -19,6 +19,7 @@ import {
 	Plus,
 	Check,
 	CreditCard,
+	Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +96,10 @@ export function RideDetailPage() {
 			fetchRideData();
 		}
 	}, [id]);
+
+	const isUserOwner = () => {
+		return utilisateur && driver && utilisateur.id === driver.id;
+	};
 
 	const handleBooking = async () => {
 		if (!paymentSimRecorded || !acceptedSimulatedPayment) {
@@ -176,6 +181,7 @@ export function RideDetailPage() {
 
 	const totalPrice = ride.prix * selectedSeats;
 	const availableSeats = ride.placesDisponibles;
+	const isOwner = isUserOwner();
 
 	return (
 		<main className="min-h-screen bg-background">
@@ -193,7 +199,7 @@ export function RideDetailPage() {
 					{/* Main Content */}
 					<div className="lg:col-span-2 space-y-6">
 						{/* Route Card */}
-						<Card className="border-border">
+						<Card className="border-border relative">
 							<CardContent className="p-6">
 								<div className="flex items-center gap-2 text-sm text-muted-foreground">
 									<Calendar className="h-4 w-4" />
@@ -270,9 +276,17 @@ export function RideDetailPage() {
 						{/* Driver Card */}
 						<Card className="border-border">
 							<CardHeader>
-								<CardTitle className="text-lg">
-									Conducteur
-								</CardTitle>
+								<div className="flex items-center justify-between">
+									<CardTitle className="text-lg">
+										Conducteur
+									</CardTitle>
+									{isOwner && (
+										<span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary border border-primary/20">
+											<Shield className="h-3 w-3" />
+											vous
+										</span>
+									)}
+								</div>
 							</CardHeader>
 							<CardContent className="p-6 pt-0">
 								<div className="flex items-start gap-4">
@@ -337,239 +351,335 @@ export function RideDetailPage() {
 
 								<Separator className="my-6" />
 
-								{/* Seat Selector */}
-								<div>
-									<label className="text-sm font-medium text-foreground">
-										Nombre de places
-									</label>
-									<div className="mt-2 flex items-center justify-center gap-4">
-										<button
-											onClick={() =>
-												setSelectedSeats(
-													Math.max(
-														1,
-														selectedSeats - 1,
-													),
-												)
-											}
-											disabled={selectedSeats <= 1}
-											className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-										>
-											<Minus className="h-4 w-4" />
-										</button>
-										<span className="w-12 text-center text-xl font-semibold text-foreground">
-											{selectedSeats}
-										</span>
-										<button
-											onClick={() =>
-												setSelectedSeats(
-													Math.min(
-														availableSeats,
-														selectedSeats + 1,
-													),
-												)
-											}
-											disabled={
-												selectedSeats >= availableSeats
-											}
-											className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-										>
-											<Plus className="h-4 w-4" />
-										</button>
-									</div>
-									<p className="mt-2 text-center text-sm text-muted-foreground">
-										{availableSeats} place
-										{availableSeats > 1 ? "s" : ""}{" "}
-										disponible
-										{availableSeats > 1 ? "s" : ""}
-									</p>
-								</div>
-
-								<Separator className="my-6" />
-
-								{/* Total */}
-								<div className="flex items-center justify-between">
-									<span className="text-foreground">
-										Total
-									</span>
-									<span className="text-2xl font-bold text-foreground">
-										{totalPrice} DT
-									</span>
-								</div>
-
-								{/* Book Button */}
-								<Dialog
-									onOpenChange={(open) => {
-										if (!open) {
-											setBookingConfirmed(false);
-											setPaymentSimRecorded(false);
-											setAcceptedSimulatedPayment(false);
-										}
-									}}
-								>
-									<DialogTrigger asChild>
-										<Button className="mt-6 w-full bg-accent text-accent-foreground hover:bg-accent/90">
-											Reserver {selectedSeats} place
-											{selectedSeats > 1 ? "s" : ""}
-										</Button>
-									</DialogTrigger>
-									<DialogContent>
-										<DialogHeader>
-											<DialogTitle>
-												{bookingConfirmed
-													? "Reservation confirmee!"
-													: "Confirmer la reservation"}
-											</DialogTitle>
-											<DialogDescription>
-												{bookingConfirmed
-													? "Votre reservation a ete enregistree avec succes."
-													: `${selectedSeats} place(s) pour ${totalPrice} DT — paiement simule dans l'application (aucun tiers).`}
-											</DialogDescription>
-										</DialogHeader>
-										{bookingConfirmed ? (
-											<div className="flex flex-col items-center py-6">
-												<div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-													<Check className="h-8 w-8 text-primary" />
-												</div>
-												<p className="mt-4 text-center text-sm text-muted-foreground">
-													Le conducteur a ete notifie.
-													Vous recevrez les details de
-													contact par email.
+								{isOwner && (
+									<div className="rounded-lg bg-primary/5 p-4 border border-primary/20 space-y-3">
+										<div className="flex items-start gap-3">
+											<Shield className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+											<div>
+												<p className="text-sm font-semibold text-foreground">
+													C'est votre trajet
 												</p>
-												<Button
-													className="mt-6 w-full"
+												<p className="text-xs text-muted-foreground mt-1">
+													Vous ne pouvez pas reserver
+													votre propre trajet.
+												</p>
+											</div>
+										</div>
+										<Button
+											variant="outline"
+											className="w-full"
+											onClick={() => navigate("/profile")}
+										>
+											Voir les reservations
+										</Button>
+									</div>
+								)}
+										<div>
+											<label className="text-sm font-medium text-foreground">
+												Nombre de places
+											</label>
+											<div className="mt-2 flex items-center justify-center gap-4">
+												<button
 													onClick={() =>
-														navigate("/profile")
+														setSelectedSeats(
+															Math.max(
+																1,
+																selectedSeats -
+																	1,
+															),
+														)
 													}
+													disabled={
+														selectedSeats <= 1
+													}
+													className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50"
 												>
-													Voir mes trajets
-												</Button>
+													<Minus className="h-4 w-4" />
+												</button>
+												<span className="w-12 text-center text-xl font-semibold text-foreground">
+													{selectedSeats}
+												</span>
+												<button
+													onClick={() =>
+														setSelectedSeats(
+															Math.min(
+																availableSeats,
+																selectedSeats +
+																	1,
+															),
+														)
+													}
+													disabled={
+														selectedSeats >=
+														availableSeats
+													}
+													className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+												>
+													<Plus className="h-4 w-4" />
+												</button>
 											</div>
-										) : (
-											<div className="space-y-4">
-												<div className="rounded-lg bg-muted p-4">
-													<div className="flex items-center justify-between">
-														<span className="text-sm text-muted-foreground">
-															Trajet
-														</span>
-														<span className="text-sm font-medium text-foreground">
-															{ride.depart} -{" "}
-															{ride.arrivee}
-														</span>
-													</div>
-													<div className="mt-2 flex items-center justify-between">
-														<span className="text-sm text-muted-foreground">
-															Date
-														</span>
-														<span className="text-sm font-medium text-foreground">
-															{ride.date}
-														</span>
-													</div>
-													<div className="mt-2 flex items-center justify-between">
-														<span className="text-sm text-muted-foreground">
-															Places
-														</span>
-														<span className="text-sm font-medium text-foreground">
-															{selectedSeats}
-														</span>
-													</div>
-													<Separator className="my-3" />
-													<div className="flex items-center justify-between">
-														<span className="font-medium text-foreground">
-															Total
-														</span>
-														<span className="text-lg font-bold text-primary">
-															{totalPrice} DT
-														</span>
-													</div>
-												</div>
+											<p className="mt-2 text-center text-sm text-muted-foreground">
+												{availableSeats} place
+												{availableSeats > 1
+													? "s"
+													: ""}{" "}
+												disponible
+												{availableSeats > 1 ? "s" : ""}
+											</p>
+										</div>
 
-												<div className="rounded-lg border border-border p-4">
-													<p className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-														<CreditCard className="h-4 w-4" />
-														Paiement ({paymentSimRecorded ? "OK" : "pas encore fait"})
-													</p>
-													<p className="mb-3 text-xs text-muted-foreground">
-														Aucun prestataire de paiement: nous enregistrons uniquement une
-														ligne de paiement simulée liée à votre compte pour la réservation.
-													</p>
-													<Label htmlFor="card-ref" className="text-muted-foreground">
-														Carte fictive (affichage)
-													</Label>
-													<Input
-														id="card-ref"
-														readOnly
-														value="···· ···· ···· 4242"
-														className="mt-1 font-mono"
-													/>
-													<div className="mt-3 flex items-start gap-2">
-														<Checkbox
-															id="pay-terms"
-															checked={acceptedSimulatedPayment}
-															onCheckedChange={(c) =>
-																setAcceptedSimulatedPayment(c === true)
-															}
-														/>
-														<Label
-															htmlFor="pay-terms"
-															className="text-sm leading-snug font-normal text-muted-foreground"
-														>
-															J'autorise l'application à enregistrer un paiement simulé de{" "}
-															<strong>{totalPrice} DT</strong> pour cette réservation (aucun
-															débit réel).
-														</Label>
-													</div>
-													{!paymentSimRecorded ? (
-														<Button
-															type="button"
-															variant="secondary"
-															className="mt-4 w-full"
-															disabled={!acceptedSimulatedPayment}
-															onClick={() =>
-																setPaymentSimRecorded(true)
-															}
-														>
-															Enregistrer le paiement (simulation)
-														</Button>
-													) : (
-														<p className="mt-4 text-xs font-medium text-emerald-700">
-															Paiement simulé enregistré — vous pouvez confirmer la réservation.
+										<Separator className="my-6" />
+
+										{/* Total */}
+										<div className="flex items-center justify-between">
+											<span className="text-foreground">
+												Total
+											</span>
+											<span className="text-2xl font-bold text-foreground">
+												{totalPrice} DT
+											</span>
+										</div>
+
+										{/* Book Button */}
+										<Dialog
+											onOpenChange={(open) => {
+												if (!open) {
+													setBookingConfirmed(false);
+													setPaymentSimRecorded(
+														false,
+													);
+													setAcceptedSimulatedPayment(
+														false,
+													);
+												}
+											}}
+										>
+											<DialogTrigger asChild>
+												<Button className="mt-6 w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isOwner}>
+													Reserver {selectedSeats}{" "}
+													place
+													{selectedSeats > 1
+														? "s"
+														: ""}
+												</Button>
+											</DialogTrigger>
+											<DialogContent>
+												<DialogHeader>
+													<DialogTitle>
+														{bookingConfirmed
+															? "Reservation confirmee!"
+															: "Confirmer la reservation"}
+													</DialogTitle>
+													<DialogDescription>
+														{bookingConfirmed
+															? "Votre reservation a ete enregistree avec succes."
+															: `${selectedSeats} place(s) pour ${totalPrice} DT — paiement simule dans l'application (aucun tiers).`}
+													</DialogDescription>
+												</DialogHeader>
+												{bookingConfirmed ? (
+													<div className="flex flex-col items-center py-6">
+														<div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+															<Check className="h-8 w-8 text-primary" />
+														</div>
+														<p className="mt-4 text-center text-sm text-muted-foreground">
+															Le conducteur a ete
+															notifie. Vous
+															recevrez les details
+															de contact par
+															email.
 														</p>
-													)}
-												</div>
+														<Button
+															className="mt-6 w-full"
+															onClick={() =>
+																navigate(
+																	"/profile",
+																)
+															}
+														>
+															Voir mes trajets
+														</Button>
+													</div>
+												) : (
+													<div className="space-y-4">
+														<div className="rounded-lg bg-muted p-4">
+															<div className="flex items-center justify-between">
+																<span className="text-sm text-muted-foreground">
+																	Trajet
+																</span>
+																<span className="text-sm font-medium text-foreground">
+																	{
+																		ride.depart
+																	}{" "}
+																	-{" "}
+																	{
+																		ride.arrivee
+																	}
+																</span>
+															</div>
+															<div className="mt-2 flex items-center justify-between">
+																<span className="text-sm text-muted-foreground">
+																	Date
+																</span>
+																<span className="text-sm font-medium text-foreground">
+																	{ride.date}
+																</span>
+															</div>
+															<div className="mt-2 flex items-center justify-between">
+																<span className="text-sm text-muted-foreground">
+																	Places
+																</span>
+																<span className="text-sm font-medium text-foreground">
+																	{
+																		selectedSeats
+																	}
+																</span>
+															</div>
+															<Separator className="my-3" />
+															<div className="flex items-center justify-between">
+																<span className="font-medium text-foreground">
+																	Total
+																</span>
+																<span className="text-lg font-bold text-primary">
+																	{totalPrice}{" "}
+																	DT
+																</span>
+															</div>
+														</div>
 
-												<Button
-													className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-													disabled={!paymentSimRecorded}
-													onClick={handleBooking}
-												>
-													Confirmer la reservation
-												</Button>
-											</div>
-										)}
-									</DialogContent>
-								</Dialog>
+														<div className="rounded-lg border border-border p-4">
+															<p className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+																<CreditCard className="h-4 w-4" />
+																Paiement (
+																{paymentSimRecorded
+																	? "OK"
+																	: "pas encore fait"}
+																)
+															</p>
+															<p className="mb-3 text-xs text-muted-foreground">
+																Aucun
+																prestataire de
+																paiement: nous
+																enregistrons
+																uniquement une
+																ligne de
+																paiement simulée
+																liée à votre
+																compte pour la
+																réservation.
+															</p>
+															<Label
+																htmlFor="card-ref"
+																className="text-muted-foreground"
+															>
+																Carte fictive
+																(affichage)
+															</Label>
+															<Input
+																id="card-ref"
+																readOnly
+																value="···· ···· ···· 4242"
+																className="mt-1 font-mono"
+															/>
+															<div className="mt-3 flex items-start gap-2">
+																<Checkbox
+																	id="pay-terms"
+																	checked={
+																		acceptedSimulatedPayment
+																	}
+																	onCheckedChange={(
+																		c,
+																	) =>
+																		setAcceptedSimulatedPayment(
+																			c ===
+																				true,
+																		)
+																	}
+																/>
+																<Label
+																	htmlFor="pay-terms"
+																	className="text-sm leading-snug font-normal text-muted-foreground"
+																>
+																	J'autorise
+																	l'application
+																	à
+																	enregistrer
+																	un paiement
+																	simulé de{" "}
+																	<strong>
+																		{
+																			totalPrice
+																		}{" "}
+																		DT
+																	</strong>{" "}
+																	pour cette
+																	réservation
+																	(aucun débit
+																	réel).
+																</Label>
+															</div>
+															{!paymentSimRecorded ? (
+																<Button
+																	type="button"
+																	variant="secondary"
+																	className="mt-4 w-full"
+																	disabled={
+																		!acceptedSimulatedPayment
+																	}
+																	onClick={() =>
+																		setPaymentSimRecorded(
+																			true,
+																		)
+																	}
+																>
+																	Enregistrer
+																	le paiement
+																	(simulation)
+																</Button>
+															) : (
+																<p className="mt-4 text-xs font-medium text-emerald-700">
+																	Paiement
+																	simulé
+																	enregistré —
+																	vous pouvez
+																	confirmer la
+																	réservation.
+																</p>
+															)}
+														</div>
 
-								{/* Contact */}
-								<Button
-									variant="outline"
-									className="mt-3 w-full"
-									disabled={
-										!driver?.id ||
-										utilisateur?.id === driver.id
-									}
-									onClick={() => {
-										if (!id || !driver?.id) return;
-										navigate(
-											`/messages?tripId=${encodeURIComponent(id)}&withUser=${encodeURIComponent(String(driver.id))}`,
-										);
-									}}
-								>
-									<MessageCircle className="mr-2 h-4 w-4" />
-									{utilisateur?.id === driver.id
-										? "C'est votre trajet"
-										: `Contacter ${driver.prenom}`}
-								</Button>
+														<Button
+															className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+															disabled={
+																!paymentSimRecorded
+															}
+															onClick={
+																handleBooking
+															}
+														>
+															Confirmer la
+															reservation
+														</Button>
+													</div>
+												)}
+											</DialogContent>
+										</Dialog>
+
+										{/* Contact */}
+										{!isOwner && (
+											<Button
+											variant="outline"
+											className="mt-3 w-full"
+											onClick={() => {
+												if (!id || !driver?.id) return;
+												navigate(
+													`/messages?tripId=${encodeURIComponent(id)}&withUser=${encodeURIComponent(String(driver.id))}`,
+												);
+											}}
+										>
+											<MessageCircle className="mr-2 h-4 w-4" />
+											{`Contacter ${driver.prenom}`}
+										</Button>
+									)}
 							</CardContent>
 						</Card>
 					</div>

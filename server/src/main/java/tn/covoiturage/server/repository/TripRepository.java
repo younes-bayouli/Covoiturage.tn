@@ -17,28 +17,36 @@ import tn.covoiturage.server.model.User;
 
 public interface TripRepository extends JpaRepository<Trip, Long> {
 
-	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	@Query("SELECT t FROM Trip t WHERE t.id = :id")
-	Optional<Trip> findByIdForUpdate(@Param("id") Long id);
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT t FROM Trip t WHERE t.id = :id")
+        Optional<Trip> findByIdForUpdate(@Param("id") Long id);
 
-    @Query("SELECT t FROM Trip t WHERE t.status = 'upcoming' ORDER BY t.departureTime ASC")
-    List<Trip> findUpcomingTrips(Pageable pageable);
+        @Query("SELECT t FROM Trip t WHERE t.status = 'upcoming' ORDER BY t.departureTime ASC")
+        List<Trip> findUpcomingTrips(Pageable pageable);
 
-    @Query("SELECT t FROM Trip t WHERE t.depart = :depart AND t.arrivee = :arrivee AND t.date = :date AND t.placesDisponibles >= :nbrPassagers AND t.status = 'upcoming'")
-    List<Trip> searchTrips(@Param("depart") String depart,
-            @Param("arrivee") String arrivee,
-            @Param("date") LocalDate date,
-            @Param("nbrPassagers") Integer nbrPassagers);
+        @Query("SELECT t FROM Trip t WHERE t.depart = :depart AND t.arrivee = :arrivee AND t.date = :date AND t.placesDisponibles >= :nbrPassagers AND t.status = 'upcoming'")
+        List<Trip> searchTrips(@Param("depart") String depart,
+                        @Param("arrivee") String arrivee,
+                        @Param("date") LocalDate date,
+                        @Param("nbrPassagers") Integer nbrPassagers);
 
-    @Query("SELECT t FROM Trip t WHERE t.depart = :depart AND t.arrivee = :arrivee AND t.date = :date AND t.placesDisponibles >= :nbrPassagers AND t.prix <= :prixMax AND t.placesDisponibles >= :placesMin AND t.status = 'upcoming'")
-    List<Trip> searchTripsWithFilters(@Param("depart") String depart,
-            @Param("arrivee") String arrivee,
-            @Param("date") LocalDate date,
-            @Param("nbrPassagers") Integer nbrPassagers,
-            @Param("prixMax") Double prixMax,
-            @Param("placesMin") Integer placesMin);
+        @Query("SELECT t FROM Trip t WHERE t.depart = :depart AND t.arrivee = :arrivee AND t.date = :date AND t.placesDisponibles >= :nbrPassagers AND t.prix <= :prixMax AND t.placesDisponibles >= :placesMin AND t.status = 'upcoming'")
+        List<Trip> searchTripsWithFilters(@Param("depart") String depart,
+                        @Param("arrivee") String arrivee,
+                        @Param("date") LocalDate date,
+                        @Param("nbrPassagers") Integer nbrPassagers,
+                        @Param("prixMax") Double prixMax,
+                        @Param("placesMin") Integer placesMin);
 
-    List<Trip> findByOwner(User owner);
+        // New query for searching without date (all upcoming trips for that route)
+        @Query("SELECT t FROM Trip t WHERE t.depart = :depart AND t.arrivee = :arrivee AND t.placesDisponibles >= :nbrPassagers AND t.prix <= :prixMax AND t.placesDisponibles >= :placesMin AND t.status = 'upcoming' ORDER BY t.departureTime ASC")
+        List<Trip> searchTripsWithFiltersNoDate(@Param("depart") String depart,
+                        @Param("arrivee") String arrivee,
+                        @Param("nbrPassagers") Integer nbrPassagers,
+                        @Param("prixMax") Double prixMax,
+                        @Param("placesMin") Integer placesMin);
 
-    List<Trip> findByStatus(String status);
+        List<Trip> findByOwner(User owner);
+
+        List<Trip> findByStatus(String status);
 }

@@ -46,6 +46,12 @@ public class TripService {
 
     public List<Trip> searchTrips(String depart, String arrivee, LocalDate date, Integer nbrPassagers, Double prixMax,
             Integer placesMin) {
+        // If date is null, search without date filter (all upcoming trips for that
+        // route)
+        if (date == null) {
+            return tripRepository.searchTripsWithFiltersNoDate(depart, arrivee, nbrPassagers, prixMax, placesMin);
+        }
+        // Otherwise, search with date filter
         return tripRepository.searchTripsWithFilters(depart, arrivee, date, nbrPassagers, prixMax, placesMin);
     }
 
