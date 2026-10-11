@@ -7,7 +7,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { OfferPage } from "./pages/OfferPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
-import { AuthProvider } from "./context/authContext";
+import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useLocation } from "react-router-dom";
 import { ModifierPage } from "./pages/ModifyPage";

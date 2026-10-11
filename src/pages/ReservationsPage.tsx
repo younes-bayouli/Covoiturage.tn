@@ -73,7 +73,8 @@ function CancelConfirmModal({
 							Annuler la réservation
 						</h2>
 						<p className="text-sm text-muted-foreground">
-							{reservation.departure} → {reservation.arrival}
+							{reservation.trip?.depart ?? reservation.departure} →{" "}
+							{reservation.trip?.arrivee ?? reservation.arrival}
 						</p>
 					</div>
 					<button
@@ -175,25 +176,37 @@ export function ReservationsPage() {
 	const [cancelMessage, setCancelMessage] = useState("");
 
 	const calculateRefund = (reservation: any) => {
-		const now = new Date();
-		const departureTime = new Date(reservation.departureTime);
-		const hoursUntilDeparture = (departureTime - now) / (1000 * 60 * 60);
-
-		if (hoursUntilDeparture <= 24) {
-			return {
-				refundPercentage: 90,
-				refundAmount: (reservation.price * 90) / 100,
-				label: "Annulation dans les 24h",
-				color: "warning",
-			};
-		} else {
+		const departureRaw =
+			reservation.trip?.departureTime ?? reservation.departureTime;
+		const paid = reservation.price ?? 0;
+		if (!departureRaw) {
 			return {
 				refundPercentage: 100,
-				refundAmount: reservation.price,
-				label: "Annulation avant 24h",
+				refundAmount: paid,
+				label: "Remboursement intégral (pas d'info horaire)",
 				color: "success",
 			};
 		}
+		const departureTime = new Date(departureRaw);
+		const now = new Date();
+		const hoursUntilDeparture =
+			(departureTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+		// Alignée au backend : >= 24h → 100 %, sinon 90 % (pénalité 10 %)
+		if (hoursUntilDeparture >= 24) {
+			return {
+				refundPercentage: 100,
+				refundAmount: paid,
+				label: "Au moins 24h avant le trajet — remboursement intégral",
+				color: "success",
+			};
+		}
+		return {
+			refundPercentage: 90,
+			refundAmount: Math.round(paid * 90) / 100,
+			label: "Moins de 24h avant le trajet — pénalité 10%",
+			color: "warning",
+		};
 	};
 
 	useEffect(() => {

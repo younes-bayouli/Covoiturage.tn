@@ -127,7 +127,7 @@ export function TripsPage() {
 		"http://localhost:8080/trips",
 		{},
 		{
-			cache: true,
+			cache: false,
 			retries: 0,
 			retryDelay: 1000,
 			healthCheck: true,
@@ -173,6 +173,12 @@ export function TripsPage() {
 		return new Date(trip.departureTime) > new Date();
 	};
 
+	/** Backend used CANCELED vs cancelled; accept all variants for existing rows */
+	const isTripCancelled = (trip: any) => {
+		const s = (trip?.status ?? "").toString().toLowerCase();
+		return s === "cancelled" || s === "canceled";
+	};
+
 	// Opens the modal instead of cancelling directly
 	const handleCancelClick = (trip: any) => {
 		setModalTrip(trip);
@@ -215,19 +221,17 @@ export function TripsPage() {
 			setIsSubmitting(false);
 			setCancelingId(null);
 			setModalTrip(null);
-			refetch();
+			void refetch();
 			setTimeout(() => setCancelMessage(""), 4000);
 		}
 	};
 
 	const trips = tripsData !== null ? tripsData.data : [];
 	const upcomingTrips =
-		trips?.filter((t:any) => isUpcomingTrip(t) && t.status !== "cancelled") ||
-		[];
+		trips?.filter((t: any) => isUpcomingTrip(t) && !isTripCancelled(t)) || [];
 	const pastTrips =
-		trips?.filter((t:any) => !isUpcomingTrip(t) && t.status !== "cancelled") ||
-		[];
-	const cancelledTrips = trips?.filter((t) => t.status === "cancelled") || [];
+		trips?.filter((t: any) => !isUpcomingTrip(t) && !isTripCancelled(t)) || [];
+	const cancelledTrips = trips?.filter((t) => isTripCancelled(t)) || [];
 
 	return (
 		<main className="min-h-screen bg-background">

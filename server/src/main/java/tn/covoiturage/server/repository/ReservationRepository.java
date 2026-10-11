@@ -1,12 +1,20 @@
 package tn.covoiturage.server.repository;
 
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import tn.covoiturage.server.model.Reservation;
 import tn.covoiturage.server.model.Trip;
 import tn.covoiturage.server.model.User;
-import java.util.List;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+
+	@Query("SELECT r FROM Reservation r JOIN FETCH r.trip t JOIN FETCH t.owner WHERE r.passenger = :passenger")
+	List<Reservation> findByPassengerWithTripAndOwner(@Param("passenger") User passenger);
+
     List<Reservation> findByPassenger(User passenger);
     List<Reservation> findByTrip(Trip trip);
 

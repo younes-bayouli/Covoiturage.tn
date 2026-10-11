@@ -12,10 +12,10 @@ import tn.covoiturage.server.model.User;
 import tn.covoiturage.server.model.ActivityLog;
 import tn.covoiturage.server.repository.ReservationRepository;
 import tn.covoiturage.server.repository.TripRepository;
+import tn.covoiturage.server.support.RideCancellationMoney;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import tn.covoiturage.server.exception.InvalidTripDataException;
@@ -31,6 +31,9 @@ public class TripService {
 
     @Autowired
     private ActivityLogService activityLogService;
+
+    @Autowired
+    private PaymentService paymentService;
 
     public List<Trip> getUpcomingTrips(Integer limit) {
         Pageable pageable = PageRequest.of(0, Math.min(limit, 100));
@@ -70,7 +73,7 @@ public class TripService {
             // 4. Initialisation de l'état interne
             trip.setOwner(owner);
             trip.setPlacesDisponibles(trip.getSeats());
-            trip.setStatus("UPCOMING");
+            trip.setStatus("upcoming");
 
             Trip createdTrip = tripRepository.save(trip);
 
@@ -118,22 +121,37 @@ public class TripService {
                 throw new RuntimeException("Unauthorized");
             }
 
-            trip.setStatus("CANCELED");
+            trip.setStatus("cancelled");
             tripRepository.save(trip);
 
             List<Reservation> reservations = reservationRepository.findByTrip(trip);
-            long hoursUntilDeparture = ChronoUnit.HOURS.between(LocalDateTime.now(), trip.getDepartureTime());
+            long hoursUntilDeparture = RideCancellationMoney.hoursUntilDeparture(trip);
+            double multiplier = RideCancellationMoney.driverCancelPassengerRefundMultiplier(hoursUntilDeparture);
+            boolean late = RideCancellationMoney.driverLateCancel(hoursUntilDeparture);
+            double driverPenaltyTotal = 0;
 
             for (Reservation res : reservations) {
-                res.setStatus("CANCELED");
-                double refundAmount = res.getPrice();
-
-                if (hoursUntilDeparture <= 24) {
-                    // Driver cancels <= 24h: 120% refund
-                    refundAmount *= 1.2;
+                if (res.getStatus() == null || !res.getStatus().equalsIgnoreCase("confirmed")) {
+                    continue;
                 }
-                System.out.println("Refunding " + res.getPassenger().getEmail() + ": " + refundAmount + " TND");
+                double refunded = Math.round(res.getPrice() * multiplier * 100.0) / 100.0;
+                paymentService.recordDriverCancelPassengerRefund(res.getPassenger(), res, refunded,
+                        hoursUntilDeparture);
+
+                if (late) {
+                    driverPenaltyTotal += res.getPrice() * RideCancellationMoney.driverLatePenaltyPerPassengerFare();
+                }
+
+                res.setStatus("cancelled");
                 reservationRepository.save(res);
+            }
+
+            if (late && driverPenaltyTotal > 0) {
+                driverPenaltyTotal = Math.round(driverPenaltyTotal * 100.0) / 100.0;
+                paymentService.recordDriverLateCancelPenalty(owner, trip, driverPenaltyTotal,
+                        String.format(
+                                "Pénalité simulée (%d h avant trajet): >24h pas de surplus; sinon +20 %% par passager regroupée ici.",
+                                hoursUntilDeparture));
             }
 
             activityLogService.logAction(
@@ -160,7 +178,7 @@ public class TripService {
 
             for (Trip trip : upcomingTrips) {
                 if (trip.getDepartureTime().isBefore(now)) {
-                    trip.setStatus("COMPLETED");
+                    trip.setStatus("completed");
 
                     // Update stats for owner
                     User owner = trip.getOwner();

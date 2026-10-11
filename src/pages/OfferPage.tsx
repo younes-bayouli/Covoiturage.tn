@@ -28,7 +28,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { cities } from "@/lib/data";
-import { useAuth } from "../context/authContext";
+import { useAuth } from "../context/AuthContext";
 // @ts-ignore
 import { Fetch } from "@/hooks/Fetch";
 
